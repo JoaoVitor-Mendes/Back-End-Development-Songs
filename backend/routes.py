@@ -48,6 +48,73 @@ db.songs.insert_many(songs_list)
 def parse_json(data):
     return json.loads(json_util.dumps(data))
 
-######################################################################
-# INSERT CODE HERE
-######################################################################
+@app.route("/health", methods=["GET"])
+def health():
+    return {"status":"OK"}
+
+@app.route("/count")
+def count():
+    count = 20
+
+    return {"count": count}, 200
+
+@app.route("/song", methods=["GET"])
+def songs():
+    songs = list(db.songs.find({}, {"_id": 0}))
+    return {"songs": songs}, 200
+
+@app.route("/song/<id>", methods=["GET"])
+def get_song_by_id(id):
+    song = db.songs.find_one({"id": id})
+
+    if song is None:
+        return {"message": "música com id não encontrada"}, 404
+
+    song.pop("_id", None)
+
+    return song, 200
+
+from flask import request
+
+@app.route("/song", methods=["POST"])
+def create_song():
+    song = request.get_json()
+
+    if db.songs.find_one({"id": song["id"]}):
+        return {
+            "Message": f"música com id {song['id']} já presente"
+        }, 302
+
+    db.songs.insert_one(song)
+
+    song.pop("_id", None)
+
+    return song, 201
+
+@app.route("/song/<int:id>", methods=["PUT"])
+def update_song(id):
+    song_data = request.get_json()
+
+    song = db.songs.find_one({"id": id})
+
+    if song is None:
+        return {"message": "música não encontrada"}, 404
+
+    db.songs.update_one(
+        {"id": id},
+        {"$set": song_data}
+    )
+
+    updated_song = db.songs.find_one({"id": id})
+    updated_song.pop("_id", None)
+
+    return updated_song, 200
+
+@app.route("/song/<int:id>", methods=["DELETE"])
+def delete_song(id):
+    result = db.songs.delete_one({"id": id})
+
+    if result.deleted_count == 0:
+        return {"message": "música não encontrada"}, 404
+
+    return "", 204
